@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fff7e6">
+<title>Калькулятор мёда</title>
+<style>
+  :root{
+    --bg:#fff7e6; --card:#fffdf8; --ink:#3a2b12;
+    --muted:#a08a5f; --line:#efe0c0; --gold:#e5a72e; --gold-dk:#c8871a;
+    --green:#2f8f56; --green-bg:#e6f6ec; --red:#c0492f; --red-bg:#fbe9e4;
+    --shadow:0 2px 10px rgba(120,80,10,.08);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.4;
+    padding:16px 14px 60px; max-width:560px; margin:0 auto;
+    font-size:16px;
+  }
+  h1{font-size:22px;margin:0 0 2px;display:flex;align-items:center;gap:8px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:16px 15px;margin-bottom:14px;box-shadow:var(--shadow);
+  }
+  .card h2{font-size:14px;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--gold-dk);margin:0 0 12px;font-weight:700}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:7px 0;border-bottom:1px dashed var(--line)}
+  .row:last-child{border-bottom:0}
+  .row label{flex:1;font-size:15px}
+  .row .hint{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+  input[type=number]{
+    width:92px;text-align:right;font-size:16px;font-weight:600;color:var(--ink);
+    border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;background:#fff;
+    -moz-appearance:textfield;
+  }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(229,167,46,.15)}
+  .unit{color:var(--muted);font-size:13px;margin-left:4px}
+  .inp{display:flex;align-items:center}
+
+  /* result summary */
+  .big{display:flex;flex-direction:column;gap:2px;padding:6px 0}
+  .big .k{font-size:13px;color:var(--muted)}
+  .big .v{font-size:30px;font-weight:800;letter-spacing:-.02em}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 12px}
+  .stat .k{font-size:12px;color:var(--muted)}
+  .stat .v{font-size:20px;font-weight:800;margin-top:2px}
+  .pos{color:var(--green)} .neg{color:var(--red)}
+
+  /* slider */
+  .sliderwrap{margin:4px 0 2px}
+  .sliderwrap .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .sliderwrap .top b{font-size:22px;color:var(--gold-dk)}
+  input[type=range]{width:100%;accent-color:var(--gold);height:26px}
+
+  .price-in{width:120px;font-size:20px;font-weight:800;color:var(--gold-dk);
+    border:2px solid var(--gold);border-radius:12px;padding:11px;text-align:center;background:#fff}
+  .price-in:focus{outline:none;box-shadow:0 0 0 4px rgba(229,167,46,.2)}
+
+  .badge{display:inline-block;font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px}
+  .badge.ok{background:var(--green-bg);color:var(--green)}
+  .badge.warn{background:var(--red-bg);color:var(--red)}
+  .note{font-size:13px;color:var(--muted);margin-top:10px}
+  .reset{display:block;width:100%;margin-top:6px;padding:12px;border:1px solid var(--line);
+    background:#fff;border-radius:12px;color:var(--muted);font-size:14px}
+  .reset:active{background:#faf3e3}
+  .tag{font-size:12px;color:var(--muted)}
+  .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+
+<h1>🍯 Калькулятор мёда</h1>
+<p class="sub">Считаем себестоимость банки, цену и прибыль. Все цифры сохраняются на этом устройстве.</p>
+
+<!-- МАТЕРИАЛЫ — значения вписаны прямо в поля, видны сразу -->
+<div class="card">
+  <h2>Материалы на 1 банку</h2>
+  <div class="row">
+    <label>Банка<span class="hint">стеклянная банка</span></label>
+    <div class="inp"><input type="number" step="1" min="0" id="m_jar" value="27"><span class="unit">₽</span></div>
+  </div>
+  <div class="row">
+    <label>Мёд<span class="hint">мёд на одну банку</span></label>
+    <div class="inp"><input type="number" step="1" min="0" id="m_honey" value="50"><span class="unit">₽</span></div>
+  </div>
+  <div class="row">
+    <label>Кружево</label>
+    <div class="inp"><input type="number" step="1" min="0" id="m_lace" value="5"><span class="unit">₽</span></div>
+  </div>
+  <div class="row">
+    <label>Белая ткань<span class="hint">на крышку</span></label>
+    <div class="inp"><input type="number" step="1" min="0" id="m_cloth" value="2"><span class="unit">₽</span></div>
+  </div>
+  <div class="row">
+    <label>Ленточка</label>
+    <div class="inp"><input type="number" step="1" min="0" id="m_ribbon" value="2"><span class="unit">₽</span></div>
+  </div>
+  <div class="row" style="border-top:2px solid var(--line);margin-top:4px;padding-top:10px">
+    <label><b>Материалы, всего</b></label>
+    <div><b id="matTotal">86</b><span class="unit">₽</span></div>
+  </div>
+</div>
+
+<!-- РАБОТА -->
+<div class="card">
+  <h2>Работа (заливка)</h2>
+  <div class="row">
+    <label>Часов на партию<span class="hint">сколько времени на всю партию</span></label>
+    <div class="inp"><input type="number" step="0.5" min="0" id="w_hours" value="5"><span class="unit">ч</span></div>
+  </div>
+  <div class="row">
+    <label>Банок в партии<span class="hint">сколько банок заливаешь за это время</span></label>
+    <div class="inp"><input type="number" step="1" min="1" id="w_jars" value="40"><span class="unit">шт</span></div>
+  </div>
+  <div class="row">
+    <label>Ставка за час<span class="hint">во сколько ценишь свой час</span></label>
+    <div class="inp"><input type="number" step="10" min="0" id="w_rate" value="300"><span class="unit">₽/ч</span></div>
+  </div>
+  <div class="row" style="border-top:2px solid var(--line);margin-top:4px;padding-top:10px">
+    <label><b>Работа на 1 банку</b></label>
+    <div><b id="laborPerJar">38</b><span class="unit">₽</span></div>
+  </div>
+</div>
+
+<!-- СЕБЕСТОИМОСТЬ -->
+<div class="card" style="background:linear-gradient(180deg,#fffaf0,#fff5e0);border-color:#f0d99a">
+  <div class="big">
+    <span class="k">Себестоимость одной банки</span>
+    <span class="v" id="cost">124 ₽</span>
+  </div>
+  <div class="tag" id="costBreak">Материалы 86 ₽  +  работа 38 ₽</div>
+</div>
+
+<!-- ЦЕНА -->
+<div class="card">
+  <h2>Цена продажи</h2>
+
+  <div class="sliderwrap">
+    <div class="top"><span>Наценка</span><b><span id="markupVal">100</span>%</b></div>
+    <input type="range" id="markup" min="0" max="400" step="5" value="100">
+  </div>
+
+  <div class="row" style="margin-top:8px">
+    <label>Рекомендованная цена<span class="hint">себестоимость + наценка</span></label>
+    <div><b id="recPrice" style="font-size:20px">247</b><span class="unit">₽</span></div>
+  </div>
+
+  <div class="row" style="align-items:center">
+    <label>Моя цена<span class="hint">впиши свою — увидишь прибыль</span></label>
+    <div class="inp"><input type="number" class="price-in" step="5" min="0" id="price" value="247"><span class="unit">₽</span></div>
+  </div>
+
+  <div class="grid2" style="margin-top:12px">
+    <div class="stat"><div class="k">Прибыль с банки</div><div class="v pos" id="profit">124 ₽</div></div>
+    <div class="stat"><div class="k">Маржа</div><div class="v pos" id="margin">50 %</div></div>
+  </div>
+  <div class="note" id="priceNote"><span class="badge ok">Хорошо</span> Приятная маржа — так и держи.</div>
+</div>
+
+<!-- ЗАКАЗ -->
+<div class="card">
+  <h2>Расчёт заказа</h2>
+  <div class="row">
+    <label>Сколько банок в заказе</label>
+    <div class="inp"><input type="number" step="1" min="1" id="qty" value="10"><span class="unit">шт</span></div>
+  </div>
+  <div class="grid2" style="margin-top:12px">
+    <div class="stat"><div class="k">Выручка</div><div class="v" id="o_rev">2 470 ₽</div></div>
+    <div class="stat"><div class="k">Себестоимость</div><div class="v" id="o_cost">1 235 ₽</div></div>
+    <div class="stat"><div class="k">Чистая прибыль</div><div class="v pos" id="o_profit">1 235 ₽</div></div>
+    <div class="stat"><div class="k">Времени уйдёт</div><div class="v" id="o_time">1,3 ч</div></div>
+  </div>
+  <div class="stat" style="margin-top:10px;background:var(--green-bg);border-color:#bfe4cc">
+    <div class="k">Реальный доход в час <span class="tag">(ставка + прибыль)</span></div>
+    <div class="v pos" id="o_perhour">1 288 ₽/ч</div>
+  </div>
+  <div class="note">«Реальный доход в час» — сколько ты кладёшь в карман за час работы: и оплата труда, и прибыль сверху. Это главная цифра: интересно ли этим заниматься.</div>
+</div>
+
+<button class="reset" id="reset">↺ Сбросить к значениям по умолчанию</button>
+<p class="foot">Работает офлайн. Открывать в браузере (Safari / Chrome). Можно добавить на экран «Домой».</p>
+
+<script>
+// ---- поля и значения по умолчанию ----
+var MAT_IDS = ['m_jar','m_honey','m_lace','m_cloth','m_ribbon'];
+var WORK_IDS = ['w_hours','w_jars','w_rate','qty'];
+var DEFAULTS = {
+  m_jar:27, m_honey:50, m_lace:5, m_cloth:2, m_ribbon:2,
+  w_hours:5, w_jars:40, w_rate:300, qty:10,
+  markup:100, price:247, priceManual:false
+};
+
+// ---- безопасное хранилище (не роняет расчёт, если localStorage недоступен) ----
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
+
+var S = loadState();
+function loadState(){
+  var s = null;
+  try{ s = JSON.parse(lsGet('honey')); }catch(e){}
+  if(!s || typeof s !== 'object') s = {};
+  for(var k in DEFAULTS){ if(s[k]==null) s[k]=DEFAULTS[k]; }
+  return s;
+}
+function save(){ lsSet('honey', JSON.stringify(S)); }
+
+var markup = document.getElementById('markup');
+var priceEl = document.getElementById('price');
+
+// перенести сохранённые значения в поля (по умолчанию они уже вписаны в HTML)
+function applyToInputs(){
+  MAT_IDS.concat(WORK_IDS).forEach(function(id){
+    var el = document.getElementById(id); if(el) el.value = S[id];
+  });
+  markup.value = S.markup;
+  priceEl.value = S.price;
+}
+
+// навесить обработчики на уже существующие поля
+MAT_IDS.concat(WORK_IDS).forEach(function(id){
+  var el = document.getElementById(id);
+  el.addEventListener('input', function(){ S[id]=num(el.value); recalc(); save(); });
+});
+markup.addEventListener('input', function(){
+  S.markup = num(markup.value);
+  S.priceManual = false;          // двигаем ползунок — цена снова считается от наценки
+  recalc(); save();
+});
+priceEl.addEventListener('input', function(){
+  S.price = num(priceEl.value);
+  S.priceManual = true;           // вбили цену вручную — считаем прибыль от неё
+  recalc(); save();
+});
+
+document.getElementById('reset').addEventListener('click', function(){
+  if(confirm('Вернуть все цифры к значениям по умолчанию?')){
+    lsDel('honey');
+    S = {}; for(var k in DEFAULTS){ S[k]=DEFAULTS[k]; }
+    applyToInputs(); recalc(); save();
+  }
+});
+
+// ---- расчёт ----
+function recalc(){
+  var mat = 0;
+  MAT_IDS.forEach(function(id){ mat += num(S[id]); });
+  var jars = Math.max(1, num(S.w_jars));
+  var labor = num(S.w_hours) * num(S.w_rate) / jars;
+  var cost = mat + labor;
+
+  // цена: от наценки (ползунок) либо вручную.
+  // Ползунок и «рекомендованная цена» — всегда ориентир; ручную цену не трогаем.
+  var price;
+  if(S.priceManual){
+    price = num(S.price);
+  } else {
+    price = Math.round(cost * (1 + num(S.markup)/100));
+    S.price = price;
+    priceEl.value = price;
+  }
+
+  var profit = price - cost;
+  var margin = price>0 ? profit/price*100 : 0;
+
+  txt('matTotal', rub0(mat));
+  txt('laborPerJar', rub0(labor));
+  txt('cost', rub0(cost)+' ₽');
+  txt('costBreak', 'Материалы '+rub0(mat)+' ₽  +  работа '+rub0(labor)+' ₽');
+
+  txt('markupVal', num(S.markup));
+  txt('recPrice', rub0(Math.round(cost*(1+num(S.markup)/100))));
+
+  setStat('profit', rub0(profit)+' ₽', profit);
+  var mEl = document.getElementById('margin');
+  mEl.textContent = Math.round(margin)+' %';
+  mEl.className = 'v '+(margin>=0?'pos':'neg');
+
+  var note = document.getElementById('priceNote');
+  if(price < cost){
+    note.innerHTML = '<span class="badge warn">Убыток</span> Цена ниже себестоимости — так продавать нельзя.';
+  } else if(margin < 20){
+    note.innerHTML = '<span class="badge warn">Мало</span> Маржа меньше 20% — заработок почти нулевой, легко уйти в минус.';
+  } else if(margin < 40){
+    note.innerHTML = '<span class="badge ok">Нормально</span> Рабочая цена, но можно смелее.';
+  } else {
+    note.innerHTML = '<span class="badge ok">Хорошо</span> Приятная маржа — так и держи.';
+  }
+
+  var qty = Math.max(0, num(S.qty));
+  var oRev = price*qty, oCost = cost*qty, oProfit = oRev-oCost;
+  var oHours = (num(S.w_hours)/jars)*qty;
+  var oLabor = oHours*num(S.w_rate);
+  var perHour = oHours>0 ? (oLabor+oProfit)/oHours : 0;
+
+  txt('o_rev', rub0(oRev)+' ₽');
+  txt('o_cost', rub0(oCost)+' ₽');
+  setStat('o_profit', rub0(oProfit)+' ₽', oProfit);
+  txt('o_time', fmtHours(oHours));
+  setStat('o_perhour', rub0(perHour)+' ₽/ч', perHour-num(S.w_rate));
+}
+
+// ---- утилиты ----
+function num(v){ v=parseFloat(v); return isFinite(v)?v:0; }
+function rub0(v){ return Math.round(v).toLocaleString('ru-RU'); }
+function txt(id,s){ var el=document.getElementById(id); if(el) el.textContent=s; }
+function setStat(id, s, sign){
+  var el=document.getElementById(id); if(!el) return;
+  el.textContent=s; el.className='v '+(sign>=0?'pos':'neg');
+}
+function fmtHours(h){
+  if(h < 1) return Math.round(h*60)+' мин';
+  var r = Math.round(h*10)/10;
+  return (r % 1 === 0 ? r : r.toFixed(1).replace('.',',')) + ' ч';
+}
+
+// первый запуск: подставить значения и посчитать
+applyToInputs();
+recalc();
+</script>
+</body>
+</html>
