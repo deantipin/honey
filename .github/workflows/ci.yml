@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Page smoke check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Check out the PR
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Check the page over HTTP
+        run: |
+          python3 - <<'PY'
+          from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+          from pathlib import Path
+          from threading import Thread
+          from urllib.request import urlopen
+
+          expected = Path("index.html").read_bytes()
+          if not expected.strip():
+              raise SystemExit("index.html is empty")
+          server = ThreadingHTTPServer(("127.0.0.1", 0), SimpleHTTPRequestHandler)
+          Thread(target=server.serve_forever, daemon=True).start()
+          try:
+              with urlopen(f"http://127.0.0.1:{server.server_port}/", timeout=5) as response:
+                  if response.status != 200 or response.read() != expected:
+                      raise SystemExit("The home page did not serve index.html correctly")
+              print("Home page returned HTTP 200 and the expected HTML")
+          finally:
+              server.shutdown()
+              server.server_close()
+          PY
+
+      - name: Check inline JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import subprocess
+
+          class Scripts(HTMLParser):
+              def __init__(self):
+                  super().__init__(convert_charrefs=False)
+                  self.current = None
+                  self.scripts = []
+
+              def handle_starttag(self, tag, attrs):
+                  if tag == "script" and "src" not in dict(attrs):
+                      self.current = []
+
+              def handle_data(self, data):
+                  if self.current is not None:
+                      self.current.append(data)
+
+              def handle_endtag(self, tag):
+                  if tag == "script" and self.current is not None:
+                      self.scripts.append("".join(self.current))
+                      self.current = None
+
+          parser = Scripts()
+          parser.feed(Path("index.html").read_text(encoding="utf-8"))
+          if not parser.scripts or not any(code.strip() for code in parser.scripts):
+              raise SystemExit("No inline JavaScript found in the calculator")
+          for number, code in enumerate(parser.scripts, 1):
+              print(f"Checking inline script {number}", flush=True)
+              subprocess.run(["node", "--check"], input=code, text=True, check=True)
+          PY
+
+  browser:
+    name: Calculator browser check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out the PR
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --prefix "$RUNNER_TEMP/honey-browser" --no-save --package-lock=false @playwright/test@1.64.1
+          "$RUNNER_TEMP/honey-browser/node_modules/.bin/playwright" install --with-deps --only-shell chromium
+
+      - name: Check calculation, saved values and reset in Chromium
+        run: |
+          NODE_PATH="$RUNNER_TEMP/honey-browser/node_modules" node <<'JS'
+          const assert = require('node:assert/strict');
+          const { resolve } = require('node:path');
+          const { pathToFileURL } = require('node:url');
+          const { chromium, expect } = require('@playwright/test');
+
+          (async () => {
+            const browser = await chromium.launch();
+            try {
+              const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+              const errors = [];
+              page.on('pageerror', error => errors.push(error.message));
+              // The calculator is distributed as a standalone, offline HTML page.
+              await page.goto(pathToFileURL(resolve('index.html')).href);
+              await expect(page).toHaveTitle('Калькулятор мёда');
+              await expect(page.locator('#price')).toHaveValue('247');
+              await expect(page.locator('#o_profit')).toHaveText('1 235 ₽');
+
+              // 12 jars at 300 ₽: revenue 3,600; cost 1,482; profit 2,118.
+              await page.locator('#price').fill('300');
+              await page.locator('#qty').fill('12');
+              await expect(page.locator('#o_rev')).toHaveText('3 600 ₽');
+              await expect(page.locator('#o_cost')).toHaveText('1 482 ₽');
+              await expect(page.locator('#o_profit')).toHaveText('2 118 ₽');
+
+              await page.reload();
+              await expect(page.locator('#price')).toHaveValue('300');
+              await expect(page.locator('#qty')).toHaveValue('12');
+              await expect(page.locator('#o_profit')).toHaveText('2 118 ₽');
+
+              page.once('dialog', dialog => dialog.accept());
+              await page.locator('#reset').click();
+              await expect(page.locator('#price')).toHaveValue('247');
+              await expect(page.locator('#qty')).toHaveValue('10');
+              await expect(page.locator('#o_profit')).toHaveText('1 235 ₽');
+              assert.deepEqual(errors, [], 'The calculator raised JavaScript errors');
+              console.log('Chromium: calculation, saved values and reset passed');
+            } finally {
+              await browser.close();
+            }
+          })().catch(error => { console.error(error); process.exitCode = 1; });
+          JS
