@@ -83,8 +83,6 @@ jobs:
     name: Calculator browser check
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    env:
-      NODE_PATH: ${{ runner.temp }}/honey-browser/node_modules
     steps:
       - name: Check out the PR
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -94,11 +92,11 @@ jobs:
       - name: Install Playwright and Chromium
         run: |
           npm install --prefix "$RUNNER_TEMP/honey-browser" --no-save --package-lock=false @playwright/test@1.64.1
-          "$NODE_PATH/.bin/playwright" install --with-deps --only-shell chromium
+          "$RUNNER_TEMP/honey-browser/node_modules/.bin/playwright" install --with-deps --only-shell chromium
 
       - name: Check calculation, saved values and reset in Chromium
         run: |
-          node <<'JS'
+          NODE_PATH="$RUNNER_TEMP/honey-browser/node_modules" node <<'JS'
           const assert = require('node:assert/strict');
           const { resolve } = require('node:path');
           const { pathToFileURL } = require('node:url');
